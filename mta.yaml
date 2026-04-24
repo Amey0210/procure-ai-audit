@@ -1,0 +1,43 @@
+_schema-version: '3.1'
+ID: procure-audit-system
+version: 1.0.0
+
+parameters:
+  enable-parallel-deployments: true
+
+modules:
+  # 1. SAP CAP Backend (Node.js)
+  - name: procure-srv
+    type: nodejs
+    path: gen/srv
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+
+  # 2. AI Sidecar (FastAPI - Python)
+  - name: ai-sidecar
+    type: docker
+    path: ai-engine
+    parameters:
+      disk: 1G
+      memory: 1G
+
+  # 3. UI/App Router
+  - name: procure-app
+    type: html5
+    path: app
+    requires:
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api
+          url: ~{srv-url}
+
+resources:
+  # Declare the HANA Cloud database service
+  - name: procure-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared

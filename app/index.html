@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procure-AI Command Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/fundamental-styles@latest/dist/fundamental-styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/@sap-theming/theming-base-content/content/sap_fiori_3/fonts.css">
+    
+    <style>
+        :root { --sapPrimaryColor: #0a6ed1; }
+        body { 
+            background-color: #f3f4f5; 
+            font-family: "72", "72full", Arial, Helvetica, sans-serif; 
+            margin: 0; 
+            padding: 2rem; 
+        }
+        .shell-bar { 
+            background: #354a5f; color: white; padding: 0 20px; height: 48px; 
+            display: flex; align-items: center; position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+        }
+        .container { max-width: 1000px; margin: 60px auto 0; }
+        .dashboard-header { margin-bottom: 2rem; border-bottom: 2px solid var(--sapPrimaryColor); padding-bottom: 1rem; }
+        
+        .card { 
+            background: white; border-radius: 8px; padding: 1.5rem; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 1.5rem; 
+            border: 1px solid #d9d9d9;
+        }
+        
+        .fd-input { width: 100%; margin-bottom: 10px; height: 36px; border-radius: 4px; border: 1px solid #89919a; padding: 0 10px; }
+        .fd-button { background: var(--sapPrimaryColor); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
+        .fd-button:hover { background: #0854a0; }
+
+        .po-item { display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .po-item:last-child { border-bottom: none; }
+        
+        .status-badge { padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 12px; text-transform: uppercase; }
+        .risk-high { background: #ffebed; color: #bb0000; border: 1px solid #bb0000; }
+        .risk-low { background: #e7f5e9; color: #1e7e34; border: 1px solid #1e7e34; }
+        
+        .ai-box { 
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa; 
+            border-left: 4px solid var(--sapPrimaryColor); 
+            padding: 12px; 
+            margin-top: 10px; 
+            font-style: italic; 
+            color: #444; 
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .loading { text-align: center; color: #666; font-style: italic; }
+        
+        .pdf-section {
+            margin-top: 15px; 
+            border: 2px dashed #ccc; 
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            background: #fafafa;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="shell-bar">
+        <div style="font-weight: bold; font-size: 18px;">SAP <span style="font-weight: 300;">Procure-AI Agent</span></div>
+    </div>
+
+    <div class="container">
+        <div class="dashboard-header">
+            <h1>Audit Dashboard</h1>
+            <p>Purchase Order validation grounded in <strong>ChromaDB</strong> Vectorized Contracts.</p>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0">New Audit Request</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input id="in-id" class="fd-input" placeholder="PO ID (e.g., PO-2026-001)">
+                <input id="in-vendor" class="fd-input" placeholder="Vendor Name (e.g., TechLogistics)">
+                <input id="in-amount" type="number" class="fd-input" placeholder="Amount ($)">
+                <input id="in-items" class="fd-input" placeholder="Items (e.g., 5x Laptops)">
+            </div>
+            <button id="btn-manual" class="fd-button" onclick="submitPO()">Run Intelligent Audit</button>
+
+            <div class="pdf-section">
+                <p style="margin-bottom: 10px;"><strong>Or Audit via PDF Invoice</strong></p>
+                <input type="file" id="pdf-file" style="display:none" accept=".pdf" onchange="uploadPDF()">
+                <button class="fd-button" style="background:#354a5f; width:auto;" onclick="document.getElementById('pdf-file').click()">
+                    Upload & Extract via AI
+                </button>
+                <div id="upload-status" style="margin-top: 10px; font-size: 12px; color: var(--sapPrimaryColor);"></div>
+            </div>
+
+            <div class="card" style="background: #f8f9fa;">
+    <h4 style="margin:0 0 10px 0;">Audit Severity Legend</h4>
+    <div style="display:flex; gap: 15px;">
+        <span class="status-badge risk-low" style="background:#e7f5e9;">1.0: Compliant</span>
+        <span class="status-badge" style="background:#fff3cd; color:#856404; border: 1px solid #856404;">5.0: Review Required</span>
+        <span class="status-badge risk-high" style="background:#ffebed;">9.0: Contract Breach</span>
+    </div>
+</div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0">Audit History</h3>
+            <div id="po-list" class="loading">No audits performed yet. Submit a PO above.</div>
+        </div>
+    </div>
+
+    <script>
+    const SERVICE_URL = '/odata/v4/procure/PurchaseOrders';
+    const AI_ENGINE_URL = 'http://127.0.0.1:8000';
+
+    // 1. Load the list of POs
+    async function loadPOs() {
+        const container = document.getElementById('po-list');
+        try {
+            const res = await axios.get(SERVICE_URL);
+            const pos = res.data.value;
+
+            if (!pos || pos.length === 0) {
+                container.innerHTML = "No audit records found.";
+                return;
+            }
+
+            container.innerHTML = pos.map(po => `
+                <div class="po-item">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:bold; color:#333;">${po.ID}</span>
+                        <span class="status-badge ${po.aiRiskScore > 5 ? 'risk-high' : 'risk-low'}">
+                            Risk Score: ${po.aiRiskScore}
+                        </span>
+                    </div>
+                    <div style="font-size: 14px;">
+                        Vendor: <strong>${po.vendorName}</strong> | 
+                        Total: <strong>$${po.totalAmount}</strong> |
+                        Status: <strong>${po.status || 'PENDING'}</strong>
+                    </div>
+                    
+                    ${po.status !== 'APPROVED' ? 
+                        `<button class="fd-button" style="background:#1e7e34; margin-top:5px;" onclick="approvePO('${po.ID}')">
+                            Approve Audit
+                        </button>` 
+                        : ''
+                    }
+
+                    <div class="ai-box">
+                        <strong>AI Analysis:</strong> ${po.aiAnalysis || 'Analysis pending...'}
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            container.innerHTML = `<span style="color:red">Error loading data: ${err.message}</span>`;
+        }
+    }
+
+    // 2. Submit new PO
+    async function submitPO() {
+        const btn = document.getElementById('btn-manual');
+        const id = document.getElementById('in-id').value;
+        const vendor = document.getElementById('in-vendor').value;
+        const amount = document.getElementById('in-amount').value;
+        const items = document.getElementById('in-items').value;
+
+        if (!id || !vendor || !amount) {
+            alert("Please fill in all fields.");
+            return;
+        }
+
+        btn.innerText = "Analyzing...";
+        btn.disabled = true;
+
+        try {
+            await axios.post(SERVICE_URL, {
+                ID: id,
+                vendorName: vendor,
+                totalAmount: parseFloat(amount) || 0,
+                items: items
+            });
+            
+            // Clear inputs
+            document.getElementById('in-id').value = '';
+            document.getElementById('in-vendor').value = '';
+            document.getElementById('in-amount').value = '';
+            document.getElementById('in-items').value = '';
+            
+            await loadPOs();
+        } catch (err) {
+            alert("Submission failed. Check console.");
+            console.error(err);
+        } finally {
+            btn.innerText = "Run Intelligent Audit";
+            btn.disabled = false;
+        }
+    }
+
+    // 3. Approve PO
+    async function approvePO(id) {
+        try {
+            await axios.patch(`${SERVICE_URL}/${id}`, {
+                status: 'APPROVED'
+            });
+            alert(`PO ${id} Approved!`);
+            await loadPOs();
+        } catch (err) {
+            alert("Failed to approve. Check console.");
+            console.error(err);
+        }
+    }
+
+    // 4. Upload PDF
+async function uploadPDF() {
+    const file = document.getElementById('pdf-file').files[0];
+    const status = document.getElementById('upload-status');
+    const formData = new FormData();
+    formData.append("file", file);
+
+    status.innerText = "Processing...";
+    try {
+        // 1. Get JSON from Python
+        const res = await axios.post('http://127.0.0.1:8000/analyze-pdf', formData);
+        const data = res.data; 
+
+        // 2. Post to SAP CAP
+        await axios.post('/odata/v4/procure/PurchaseOrders', {
+            ID: data.id,
+            vendorName: data.vendor,
+            totalAmount: parseFloat(data.amount),
+            items: data.items,
+            aiAnalysis: data.analysis,
+            aiRiskScore: data.risk_score
+        });
+
+        status.innerText = "Success!";
+        loadPOs(); // Refresh your dashboard
+    } catch (err) {
+        status.innerText = "Error - Check Console";
+        console.error(err);
+    }
+}
+
+    window.onload = loadPOs;
+</script>
+</body>
+</html>
