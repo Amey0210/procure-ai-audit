@@ -16,7 +16,7 @@ This application implements a **RAG (Retrieval-Augmented Generation)** pipeline 
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 The system follows a modular microservices architecture, decoupling resource-heavy AI analysis logic from the core SAP backend.
 
@@ -40,7 +40,7 @@ The system follows a modular microservices architecture, decoupling resource-hea
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 ### 1. Dual-Mode Purchase Order Ingestion
 - **Manual Entry** — A clean, structured UI for submitting POs directly into the SAP system
@@ -62,7 +62,7 @@ A dedicated dashboard interface allows procurement officers to review AI-generat
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology |
 |---|---|
@@ -76,7 +76,7 @@ A dedicated dashboard interface allows procurement officers to review AI-generat
 
 ---
 
-## ⚙️ Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 
@@ -125,7 +125,7 @@ Open [http://localhost:4004](http://localhost:4004) in your browser.
 
 ---
 
-## ☁️ Deployment Strategy (SAP BTP)
+## Deployment Strategy (SAP BTP)
 
 This project uses the **SAP MTA (Multi-Target Application)** model to ensure atomic deployments across development, staging, and production environments.
 
