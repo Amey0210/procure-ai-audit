@@ -1,6 +1,6 @@
 # AI-Powered Procurement Audit System
 
-> An intelligent, enterprise-grade auditing system built on the **SAP Cloud Application Programming Model (CAP)**. This project bridges the gap between manual document review and automated business processes by utilizing a **RAG-based AI Sidecar** for real time contract compliance and risk assessment, designed for deployment on the **SAP Business Technology Platform (BTP)**.
+An intelligent, enterprise-grade auditing system built on the **SAP Cloud Application Programming Model (CAP)**. This project bridges the gap between manual document review and automated business processes by utilizing a **RAG-based AI Sidecar** for real time contract compliance and risk assessment, designed for deployment on the **SAP Business Technology Platform (BTP)**.
 
 ---
 
