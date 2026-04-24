@@ -11,6 +11,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@sap/cds": "^9.9.0"
+    "@cap-js/sqlite": "^2.2.1",
+    "@sap/cds": "^9.9.0",
+    "sqlite3": "^6.0.1"
   }
 }
